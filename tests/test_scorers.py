@@ -5,6 +5,7 @@ from evalkit.scorers import build_scorer
 from evalkit.scorers.deterministic import (
     ContainsScorer,
     ExactMatchScorer,
+    ExpectedContainsScorer,
     JsonValidScorer,
     MaxLatencyScorer,
 )
@@ -103,3 +104,34 @@ def test_build_scorer_custom_name():
 def test_build_scorer_unknown_type():
     with pytest.raises(ValueError, match="Unknown scorer type"):
         build_scorer({"type": "does_not_exist"})
+
+async def test_expected_contains_with_keyword_list():
+    result = await ExpectedContainsScorer().score(
+        case(["30 days"]), TargetOutput(output="Returns are accepted within 30 days.")
+    )
+    assert result.passed is True
+
+
+async def test_expected_contains_partial_credit():
+    result = await ExpectedContainsScorer().score(
+        case(["Monday", "Saturday"]),
+        TargetOutput(output="We are open Monday to Friday."),
+    )
+    assert result.passed is False
+    assert result.value == 0.5
+    assert result.details["missing"] == ["Saturday"]
+
+
+async def test_expected_contains_accepts_single_string():
+    result = await ExpectedContainsScorer().score(
+        case("30 days"), TargetOutput(output="Within 30 days.")
+    )
+    assert result.passed is True
+
+
+async def test_expected_contains_fails_without_expected():
+    result = await ExpectedContainsScorer().score(
+        case(None), TargetOutput(output="anything")
+    )
+    assert result.passed is False
+    assert "no expected" in result.reason

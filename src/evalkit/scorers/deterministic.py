@@ -97,3 +97,43 @@ class MaxLatencyScorer(BaseScorer):
             f"Took {result.latency_ms}ms, limit is {self.max_ms}ms.",
             details={"latency_ms": result.latency_ms, "max_ms": self.max_ms},
         )
+
+def _keyword_report(
+    text: str, keywords: list[str], ignore_case: bool
+) -> tuple[list[str], list[str]]:
+    """Returns (found, missing) keyword lists."""
+    haystack = text.lower() if ignore_case else text
+    found: list[str] = []
+    missing: list[str] = []
+    for keyword in keywords:
+        needle = keyword.lower() if ignore_case else keyword
+        (found if needle in haystack else missing).append(keyword)
+    return found, missing
+
+
+class ExpectedContainsScorer(BaseScorer):
+    """Each test case carries its OWN keywords in 'expected' (a list, or one string)."""
+
+    name = "expected_contains"
+
+    def __init__(self, ignore_case: bool = True, name: str | None = None) -> None:
+        super().__init__(name)
+        self.ignore_case = ignore_case
+
+    async def _evaluate(self, case: EvalCase, result: TargetOutput) -> ScoreResult:
+        if not case.expected:
+            return self._make(False, "Test case has no expected keywords.")
+        keywords = case.expected if isinstance(case.expected, list) else [case.expected]
+        keywords = [str(keyword) for keyword in keywords]
+        found, missing = _keyword_report(
+            to_text(result.output), keywords, self.ignore_case
+        )
+        passed = not missing
+        return self._make(
+            passed,
+            f"Found all {len(found)} expected keywords."
+            if passed
+            else f"Missing: {', '.join(missing)}",
+            value=len(found) / len(keywords),
+            details={"found": found, "missing": missing},
+        )

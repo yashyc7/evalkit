@@ -14,13 +14,14 @@ dependencies = [
     "psycopg[binary]>=3.3.6",
     "pydantic>=2.14.1",
     "pydantic-settings>=2.16.0",
+    "python-dotenv>=1.2.4",
     "rich>=15.0.0",
     "sqlalchemy>=2.1.5",
     "typer>=0.27.3",
 ]
 
 [project.scripts]
-evalkit = "evalkit:main"
+evalkit = "evalkit.cli:app"
 
 [build-system]
 requires = ["uv_build>=0.12.17,<0.13.0"]
@@ -36,3 +37,4 @@ dev = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+

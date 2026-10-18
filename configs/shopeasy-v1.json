@@ -1,0 +1,7 @@
+{
+  "model": "deepseek-ai/DeepSeek-V4.1-Flash",
+  "api_base": "https://api.deepinfra.com/v1/openai",
+  "api_key_env": "DEEPINFRA_API_KEY",
+  "prompt": "You are a helpful shop assistant. Answer in one short sentence.",
+  "temperature": 0
+}

@@ -1,0 +1,10 @@
+{"input": "How many days do I have to return an item?", "expected": ["30 days"], "tags": ["returns"]}
+{"input": "How long does a refund take to arrive?", "expected": ["7 business days"], "tags": ["refunds"]}
+{"input": "What is the minimum order value for free shipping?", "expected": ["999"], "tags": ["shipping"]}
+{"input": "How much does express delivery cost?", "expected": ["149"], "tags": ["shipping"]}
+{"input": "What is the maximum order value for cash on delivery?", "expected": ["5000"], "tags": ["payments"]}
+{"input": "On which days is customer support available?", "expected": ["Monday", "Saturday"], "tags": ["support"]}
+{"input": "What is your support email address?", "expected": ["support@shopeasy.example"], "tags": ["support"]}
+{"input": "How long is the warranty on electronics?", "expected": ["1 year"], "tags": ["warranty"]}
+{"input": "Do you deliver to Japan?", "expected": ["India"], "tags": ["shipping", "tricky"]}
+{"input": "Tell me a joke", "expected": ["only help with ShopEasy"], "tags": ["off-topic"]}

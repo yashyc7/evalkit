@@ -4,6 +4,7 @@ from evalkit.scorers.base import BaseScorer
 from evalkit.scorers.deterministic import (
     ContainsScorer,
     ExactMatchScorer,
+    ExpectedContainsScorer,
     JsonValidScorer,
     MaxLatencyScorer,
 )
@@ -13,6 +14,7 @@ SCORER_REGISTRY: dict[str, type[BaseScorer]] = {
     for scorer_class in (
         ExactMatchScorer,
         ContainsScorer,
+        ExpectedContainsScorer,
         JsonValidScorer,
         MaxLatencyScorer,
     )
@@ -27,6 +29,7 @@ def build_scorer(spec: dict[str, Any]) -> BaseScorer:
         scorer_class = SCORER_REGISTRY[scorer_type]
     except KeyError:
         raise ValueError(
-            f"Unknown scorer type {scorer_type!r}. Available: {sorted(SCORER_REGISTRY)}"
+            f"Unknown scorer type {scorer_type!r}. "
+            f"Available: {sorted(SCORER_REGISTRY)}"
         ) from None
     return scorer_class(**params)

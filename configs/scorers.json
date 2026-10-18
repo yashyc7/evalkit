@@ -1,0 +1,4 @@
+[
+  {"type": "expected_contains"},
+  {"type": "max_latency", "max_ms": 10000}
+]

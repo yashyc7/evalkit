@@ -1,3 +1,4 @@
+import os
 import time
 from abc import ABC, abstractmethod
 from dataclasses import replace
@@ -7,6 +8,20 @@ from typing import Any
 import httpx
 
 from evalkit.core.types import TargetOutput, to_text
+
+
+def compute_cost(
+    input_tokens: int,
+    output_tokens: int,
+    price_per_1m_input: float,
+    price_per_1m_output: float,
+) -> Decimal:
+    """Cost in USD, from token counts and prices per 1 million tokens."""
+    total = (
+        Decimal(str(price_per_1m_input)) * input_tokens
+        + Decimal(str(price_per_1m_output)) * output_tokens
+    )
+    return total / Decimal(1_000_000)
 
 
 class BaseTarget(ABC):
@@ -19,7 +34,6 @@ class BaseTarget(ABC):
             result = await self._call(input)
         except Exception as exc:
             # One bad question must not crash the whole run.
-            # We save the error and move on, like the Timeout row in our seed data.
             result = TargetOutput(error=f"{type(exc).__name__}: {exc}")
         latency_ms = int((time.perf_counter() - start) * 1000)
         return replace(result, latency_ms=latency_ms)
@@ -71,17 +85,39 @@ class HttpTarget(BaseTarget):
 
 
 class LLMTarget(BaseTarget):
-    """Calls an LLM directly (any provider, through LiteLLM) with a system prompt."""
+    """Calls an LLM (through LiteLLM) with a system prompt.
+
+    Works with normal providers, and with any OpenAI-compatible server
+    (DeepInfra, vLLM, ...) when api_base is given.
+    """
 
     def __init__(
         self,
         model: str,
         system_prompt: str | None = None,
         temperature: float = 0.0,
+        api_base: str | None = None,
+        api_key_env: str | None = None,
+        price_per_1m_input: float | None = None,
+        price_per_1m_output: float | None = None,
     ) -> None:
         self.model = model
         self.system_prompt = system_prompt
         self.temperature = temperature
+        self.api_base = api_base
+        self.price_per_1m_input = price_per_1m_input
+        self.price_per_1m_output = price_per_1m_output
+
+        # The config only holds the NAME of the environment variable.
+        # The secret itself is read here and lives only in memory.
+        self.api_key: str | None = None
+        if api_key_env:
+            self.api_key = os.environ.get(api_key_env)
+            if not self.api_key:
+                raise ValueError(
+                    f"Environment variable {api_key_env!r} is not set. "
+                    "Add it to your .env file."
+                )
 
     async def _call(self, input: Any) -> TargetOutput:
         import litellm  # imported here because it is slow to load (a few seconds)
@@ -91,24 +127,44 @@ class LLMTarget(BaseTarget):
             messages.append({"role": "system", "content": self.system_prompt})
         messages.append({"role": "user", "content": to_text(input)})
 
+        extra: dict[str, Any] = {}
+        if self.api_base:
+            extra["api_base"] = self.api_base
+        if self.api_key:
+            extra["api_key"] = self.api_key
+
         response = await litellm.acompletion(
             model=self.model,
             messages=messages,
             temperature=self.temperature,
             drop_params=True,  # ignore settings a model does not support
+            **extra,
         )
 
-        try:
-            cost: Decimal | None = Decimal(
-                str(litellm.completion_cost(completion_response=response))
+        input_tokens = response.usage.prompt_tokens or 0
+        output_tokens = response.usage.completion_tokens or 0
+
+        cost: Decimal | None
+        if self.price_per_1m_input is not None and self.price_per_1m_output is not None:
+            # Prices you wrote yourself beat guessing.
+            cost = compute_cost(
+                input_tokens,
+                output_tokens,
+                self.price_per_1m_input,
+                self.price_per_1m_output,
             )
-        except Exception:
-            cost = None  # price unknown for this model; better empty than wrong
+        else:
+            try:
+                cost = Decimal(
+                    str(litellm.completion_cost(completion_response=response))
+                )
+            except Exception:
+                cost = None  # price unknown for this model; better empty than wrong
 
         return TargetOutput(
             output=response.choices[0].message.content,
-            input_tokens=response.usage.prompt_tokens,
-            output_tokens=response.usage.completion_tokens,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
             cost_usd=cost,
         )
 
@@ -128,5 +184,9 @@ def build_target(kind: str, config: dict[str, Any]) -> BaseTarget:
             model=config["model"],
             system_prompt=config.get("prompt"),
             temperature=config.get("temperature", 0.0),
+            api_base=config.get("api_base"),
+            api_key_env=config.get("api_key_env"),
+            price_per_1m_input=config.get("price_per_1m_input"),
+            price_per_1m_output=config.get("price_per_1m_output"),
         )
     raise ValueError(f"Unknown target kind: {kind!r}")
