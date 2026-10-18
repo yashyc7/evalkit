@@ -15,7 +15,9 @@ def case(expected=None):
 
 
 async def test_exact_match_ignores_case_and_spaces():
-    result = await ExactMatchScorer().score(case("Hello"), TargetOutput(output="  hello "))
+    result = await ExactMatchScorer().score(
+        case("Hello"), TargetOutput(output="  hello ")
+    )
     assert result.passed is True
     assert result.value == 1.0
 
@@ -74,7 +76,12 @@ async def test_max_latency_fails_when_slow():
 
 @pytest.mark.parametrize(
     "scorer",
-    [ExactMatchScorer(), ContainsScorer(["x"]), JsonValidScorer(), MaxLatencyScorer(1000)],
+    [
+        ExactMatchScorer(),
+        ContainsScorer(["x"]),
+        JsonValidScorer(),
+        MaxLatencyScorer(1000),
+    ],
 )
 async def test_failed_target_fails_every_scorer(scorer):
     result = await scorer.score(case("x"), TargetOutput(error="Timeout after 30s"))
