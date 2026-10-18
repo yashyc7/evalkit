@@ -118,7 +118,7 @@ class Run(UUIDMixin, TimestampMixin, Base):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     git_sha: Mapped[str | None]
     summary: Mapped[Any] = mapped_column(JSONB(none_as_null=True), nullable=True)
-
+    scorer_config: Mapped[Any] = mapped_column(JSONB(none_as_null=True), nullable=True)
     dataset: Mapped["Dataset"] = relationship(back_populates="runs")
     target_version: Mapped["TargetVersion"] = relationship(back_populates="runs")
     results: Mapped[list["Result"]] = relationship(
